@@ -46,6 +46,11 @@
                         <button class="chip" data-sql="SELECT * FROM students;">students data</button>
                     </div>
                 </section>
+                <section class="panel danger-panel">
+                    <h3><span><i class="fas fa-triangle-exclamation"></i> DANGER ZONE</span></h3>
+                    <p class="danger-note">This deletes <b>ALL tables</b> and every row inside them. Cannot be undone!</p>
+                    <button id="cleardb" class="dangerbig"><i class="fas fa-trash-can"></i> DELETE DATABASE</button>
+                </section>
             </aside>
 
             <section class="console-panel fade-in">
@@ -119,6 +124,8 @@
         </div>
     </footer>
 
+    <div id="toasts" class="toasts"></div>
+
 <script>
 const box = document.getElementById('sqlbox');
 const form = document.getElementById('sqlform');
@@ -148,20 +155,52 @@ document.getElementById('clearhist').onclick = () => { localStorage.removeItem('
 async function loadTables() {
     const ul = document.getElementById('tables');
     try {
-        const res = await fetch('/api/tables');
+        const res = await fetch('/api/table_counts');
         const data = await res.json();
         ul.innerHTML = '';
         if (!data.tables.length) { ul.innerHTML = '<li class="muted">no tables yet — CREATE one!</li>'; return; }
         data.tables.forEach(t => {
             const li = document.createElement('li');
-            li.innerHTML = '<i class="fas fa-table-cells" style="margin-right:7px;color:#f05333"></i>' + t;
+            li.className = 'trow';
+            li.innerHTML =
+                '<span class="tmain"><i class="fas fa-table-cells"></i>' + t.name + '</span>' +
+                '<span class="tactions">' +
+                    '<span class="badge">' + t.rows + '</span>' +
+                    '<i class="fas fa-trash tdel" title="DROP TABLE ' + t.name + '"></i>' +
+                '</span>';
             li.title = 'click to view rows';
-            li.onclick = () => { box.value = 'SELECT * FROM ' + t + ';'; saveHist(box.value); form.submit(); };
+            li.onclick = () => { box.value = 'SELECT * FROM ' + t.name + ';'; saveHist(box.value); form.submit(); };
+            li.querySelector('.tdel').onclick = (ev) => {
+                ev.stopPropagation();
+                if (!confirm('DROP TABLE "' + t.name + '"?\n\nAll its rows will be permanently deleted.')) return;
+                fetch('/api/drop_table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: t.name }) })
+                    .then(r => r.json()).then(d => {
+                        if (d.ok) toast('Table "' + t.name + '" dropped 🗑️'); else toast(d.error, false);
+                        loadTables();
+                    });
+            };
             ul.appendChild(li);
         });
     } catch (e) { ul.innerHTML = '<li class="muted">unavailable</li>'; }
 }
 document.getElementById('refresh').onclick = loadTables;
+
+document.getElementById('cleardb').onclick = () => {
+    if (!confirm('DELETE THE ENTIRE DATABASE?\n\nEvery table and every row will be permanently removed.\nThis cannot be undone!')) return;
+    fetch('/api/clear_database', { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.ok) { toast('Database cleared. Fresh start! 🧹'); renderHist(); } else toast(d.error, false);
+            loadTables();
+        });
+};
+
+function toast(msg, ok = true) {
+    const d = document.createElement('div');
+    d.className = 'toast ' + (ok ? 'tok' : 'tbad');
+    d.innerHTML = '<i class="fas ' + (ok ? 'fa-circle-check' : 'fa-circle-exclamation') + '"></i> ' + msg;
+    document.getElementById('toasts').appendChild(d);
+    setTimeout(() => { d.classList.add('bye'); setTimeout(() => d.remove(), 400); }, 3400);
+}
 
 document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => { box.value = ch.dataset.sql; form.submit(); });
 

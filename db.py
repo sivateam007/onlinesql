@@ -1,4 +1,5 @@
 import os
+import re
 
 USE_POSTGRES = bool(os.environ.get("DATABASE_URL"))
 PLACEHOLDER = "%s" if USE_POSTGRES else "?"
@@ -103,6 +104,39 @@ def list_tables():
         return [r[0] for r in cur.fetchall()]
     finally:
         conn.close()
+
+
+IDENT_OK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def table_counts():
+    names = list_tables()
+    out = []
+    conn = get_conn()
+    try:
+        for n in names:
+            cur = conn.execute(f'SELECT COUNT(*) FROM "{n}"')
+            out.append({"name": n, "rows": cur.fetchone()[0]})
+    finally:
+        conn.close()
+    return out
+
+
+def drop_table(name):
+    if not IDENT_OK.match(name or ""):
+        raise ValueError(f"Invalid table name: {name!r}")
+    conn = get_conn()
+    try:
+        conn.execute(f'DROP TABLE IF EXISTS "{name}"')
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def clear_database():
+    for n in list_tables():
+        drop_table(n)
+    init_db()
 
 
 SCHEMA = """

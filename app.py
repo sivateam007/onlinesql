@@ -38,6 +38,30 @@ def api_tables():
     return {"tables": db.list_tables()}
 
 
+@app.route("/api/table_counts")
+def api_table_counts():
+    return {"tables": db.table_counts()}
+
+
+@app.route("/api/drop_table", methods=["POST"])
+def api_drop_table():
+    name = (request.get_json(silent=True) or {}).get("name", "")
+    try:
+        db.drop_table(name)
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": f"{exc.__class__.__name__}: {exc}"}, 400
+
+
+@app.route("/api/clear_database", methods=["POST"])
+def api_clear_database():
+    try:
+        db.clear_database()
+        return {"ok": True}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}, 500
+
+
 @app.route("/students")
 def students():
     rows = db.fetch_all()

@@ -344,3 +344,68 @@ footer { background: #fff; border-top: 1px solid var(--border); margin-top: 30px
     .side { order: 2; }
     .console-panel { order: 1; }
 }
+
+/* ---------- table rows + badges ---------- */
+.trow { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.tmain { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tmain i { color: var(--primary); }
+.tactions { display: inline-flex; align-items: center; gap: 8px; }
+.badge {
+    background: #f3f4f6;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: .68rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.tdel { color: #d1d5db; cursor: pointer; transition: .15s; padding: 3px; }
+.tdel:hover { color: var(--red); transform: scale(1.15); }
+
+/* ---------- danger zone ---------- */
+.danger-panel { border: 1.5px dashed #fecaca; background: #fffafa; }
+.danger-note { color: var(--muted); font-size: .76rem; line-height: 1.5; margin-bottom: 12px; }
+.dangerbig {
+    width: 100%;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px;
+    font-weight: 700;
+    font-size: .82rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(220,38,38,.25);
+    transition: .18s;
+}
+.dangerbig:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(220,38,38,.35); }
+.dangerbig i { margin-right: 6px; }
+
+/* ---------- toasts ---------- */
+.toasts {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 200;
+}
+.toast {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 26px rgba(0,0,0,.14);
+    padding: 12px 18px;
+    font-size: .84rem;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    animation: toastIn .35s ease-out both;
+    max-width: 340px;
+    word-break: break-word;
+}
+.toast.tok { border-left: 4px solid var(--green); color: #166534; }
+.toast.tok i { color: var(--green); }
+.toast.tbad { border-left: 4px solid var(--red); color: #991b1b; }
+.toast.tbad i { color: var(--red); }
+.toast.bye { opacity: 0; transform: translateX(30px); transition: .4s; }
+@keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
