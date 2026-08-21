@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online SQL Console</title>
+    <title>SIVA — Online SQL Console</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="term-wrap">
         <div class="term-header">
             <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            <span class="title">SQL*Plus Web — Online SQL Console</span>
+            <span class="title"><span class="brand">SIVA</span> · SQL*Plus Web — Online SQL Console</span>
             <a href="/students" class="navlink">🎓 Student Manager demo</a>
         </div>
 
@@ -56,6 +56,8 @@ Examples: CREATE TABLE ... / INSERT / SELECT / UPDATE / DELETE / DROP TABLE
                 {% endfor %}
             </div>
             {% endif %}
+            </div>
+            <footer class="term-footer">© 2026 SIVA — all rights reserved · built with Flask + PostgreSQL</footer>
         </div>
     </div>
 

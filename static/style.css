@@ -81,6 +81,14 @@ footer { text-align: center; color: rgba(255,255,255,.7); font-size: .8rem; marg
 .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
 .dot.red { background: #ff5f56; } .dot.yellow { background: #ffbd2e; } .dot.green { background: #27c93f; }
 .term-header .title { color: #aab2c5; font-size: .85rem; margin-left: 8px; flex: 1; }
+.brand {
+    background: linear-gradient(90deg, #7ee787, #79c0ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: .12em;
+}
+.term-footer { color: #586274; font-size: .72rem; text-align: center; padding: 10px 0 0; font-family: Consolas, monospace; }
 .navlink { color: #8be9fd; font-size: .8rem; text-decoration: none; }
 
 .term-body { background: #0d1117; padding: 16px; min-height: 70vh; }
