@@ -93,6 +93,9 @@ def run_sql(sql_text):
     return results
 
 
+IDENT_OK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def list_tables():
     if USE_POSTGRES:
         sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
@@ -106,9 +109,6 @@ def list_tables():
         conn.close()
 
 
-IDENT_OK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-
-
 def table_counts():
     names = list_tables()
     out = []
@@ -120,6 +120,19 @@ def table_counts():
     finally:
         conn.close()
     return out
+
+
+def table_data(name, limit=200):
+    if not IDENT_OK.match(name or ""):
+        raise ValueError(f"Invalid table name: {name!r}")
+    conn = get_conn()
+    try:
+        cur = conn.execute(f'SELECT * FROM "{name}" LIMIT {int(limit)}')
+        cols = [d[0] for d in cur.description]
+        rows = [tuple(r) for r in cur.fetchall()]
+        return {"name": name, "columns": cols, "rows": rows}
+    finally:
+        conn.close()
 
 
 def drop_table(name):
@@ -136,53 +149,3 @@ def drop_table(name):
 def clear_database():
     for n in list_tables():
         drop_table(n)
-    init_db()
-
-
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS students (
-    sid    INTEGER PRIMARY KEY,
-    name   VARCHAR(50) NOT NULL,
-    mobile VARCHAR(15)
-)
-"""
-
-
-def init_db():
-    conn = get_conn()
-    try:
-        conn.execute(SCHEMA)
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def fetch_all():
-    conn = get_conn()
-    try:
-        cur = conn.execute("SELECT sid, name, mobile FROM students ORDER BY sid")
-        return [tuple(r) for r in cur.fetchall()]
-    finally:
-        conn.close()
-
-
-def add_student(sid, name, mobile):
-    sql = f"INSERT INTO students (sid, name, mobile) VALUES ({PLACEHOLDER}, {PLACEHOLDER}, {PLACEHOLDER})"
-    conn = get_conn()
-    try:
-        cur = conn.execute(sql, (sid, name, mobile))
-        conn.commit()
-        return cur.rowcount
-    finally:
-        conn.close()
-
-
-def delete_student(sid):
-    sql = f"DELETE FROM students WHERE sid = {PLACEHOLDER}"
-    conn = get_conn()
-    try:
-        cur = conn.execute(sql, (sid,))
-        conn.commit()
-        return cur.rowcount
-    finally:
-        conn.close()

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIVA — Database Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-database"></i></div>
+                <h1>SIVA <span>Database Manager</span></h1>
+            </div>
+            <nav class="nav-links">
+                <a href="/"><i class="fas fa-home"></i> Home</a>
+                <a href="/database" class="active"><i class="fas fa-table-list"></i> Database Manager</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Database Manager</h2>
+            <p>Browse your tables, view every row of data, and manage your database visually</p>
+        </div>
+    </section>
+
+    <div class="container">
+        {% if error %}
+        <div class="content-section" style="border-left: 6px solid var(--accent);">
+            <h2><i class="fas fa-circle-exclamation"></i> Error</h2>
+            <p class="err">{{ error }}</p>
+        </div>
+        {% endif %}
+
+        {% if data %}
+        <div class="content-section">
+            <h2><i class="fas fa-table-cells"></i> {{ data.name }}</h2>
+            {% if data.rows %}
+            <div class="tblwrap">
+                <table class="data-table">
+                    <tr>{% for c in data.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+                    {% for row in data.rows %}
+                    <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
+                    {% endfor %}
+                </table>
+            </div>
+            <p class="rownote">Showing {{ data.rows|length }} row(s) · max 200 per view</p>
+            {% else %}
+            <p class="empty-note">This table exists but has no rows yet. INSERT some data from the console!</p>
+            {% endif %}
+            <div style="margin-top:16px;">
+                <a href="/database" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back to all tables</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="content-section">
+            <h2><i class="fas fa-layer-group"></i> All Tables ({{ tables|length }})</h2>
+            <div class="table-list">
+                {% if tables %}
+                    {% for t in tables %}
+                    <div class="table-card">
+                        <span class="table-name"><i class="fas fa-table-cells"></i>{{ t.name }}<span class="badge">{{ t.rows }} rows</span></span>
+                        <span class="tactions">
+                            <a class="mini-btn mini-view" href="/database?table={{ t.name }}"><i class="fas fa-eye"></i> View Data</a>
+                            <button class="mini-btn mini-drop" onclick="dropTable('{{ t.name }}')"><i class="fas fa-trash"></i> Drop</button>
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="empty-note">No tables yet — go to the SQL Console and CREATE one!</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="content-section danger-zone">
+            <h3><i class="fas fa-triangle-exclamation"></i> Danger Zone</h3>
+            <p>This deletes ALL tables and every row inside them. Cannot be undone!</p>
+            <button id="cleardb" class="btn btn-danger"><i class="fas fa-trash-can"></i> Delete Database</button>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-column">
+                <h3>SIVA SQL Console</h3>
+                <p>Practice real SQL online — create tables, insert data, run queries and manage your database from anywhere.</p>
+            </div>
+            <div class="footer-column">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> SQL Console</a></li>
+                    <li><a href="/database"><i class="fas fa-table-list"></i> Database Manager</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Supported Commands</h3>
+                <ul>
+                    <li><a href="#">CREATE TABLE</a></li>
+                    <li><a href="#">INSERT / SELECT / UPDATE / DELETE</a></li>
+                    <li><a href="#">COMMIT / ROLLBACK / DROP TABLE</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>&copy; 2026 SIVA. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <div id="toasts" class="toasts"></div>
+
+<script>
+function toast(msg, ok = true) {
+    const d = document.createElement('div');
+    d.className = 'toast ' + (ok ? 'tok' : 'tbad');
+    d.innerHTML = '<i class="fas ' + (ok ? 'fa-circle-check' : 'fa-circle-exclamation') + '"></i> ' + msg;
+    document.getElementById('toasts').appendChild(d);
+    setTimeout(() => { d.classList.add('bye'); setTimeout(() => d.remove(), 400); }, 3400);
+}
+
+function dropTable(name) {
+    if (!confirm('DROP TABLE "' + name + '"?\n\nAll its rows will be permanently deleted.')) return;
+    fetch('/api/drop_table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+        .then(r => r.json()).then(d => {
+            toast(d.ok ? 'Table "' + name + '" dropped 🗑️' : d.error, d.ok);
+            if (d.ok) setTimeout(() => location.reload(), 900);
+        });
+}
+
+document.getElementById('cleardb').onclick = () => {
+    if (!confirm('DELETE THE ENTIRE DATABASE?\n\nEvery table and every row will be permanently removed.\nThis cannot be undone!')) return;
+    fetch('/api/clear_database', { method: 'POST' }).then(r => r.json()).then(d => {
+        toast(d.ok ? 'Database cleared. Fresh start! 🧹' : d.error, d.ok);
+        if (d.ok) setTimeout(() => location.reload(), 900);
+    });
+};
+</script>
+</body>
+</html>

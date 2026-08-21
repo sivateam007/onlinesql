@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIVA — Online SQL Console</title>
+    <title>SIVA — SQL Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -11,111 +11,124 @@
     <header>
         <div class="header-container">
             <div class="logo">
-                <div class="logo-icon"><span>S</span></div>
+                <div class="logo-icon"><i class="fas fa-database"></i></div>
                 <h1>SIVA <span>SQL Console</span></h1>
             </div>
-            <nav class="top-links">
-                <a href="/students"><i class="fas fa-graduation-cap"></i> Student Manager</a>
+            <nav class="nav-links">
+                <a href="/" class="active"><i class="fas fa-home"></i> Home</a>
+                <a href="/database"><i class="fas fa-table-list"></i> Database Manager</a>
             </nav>
         </div>
     </header>
 
     <section class="hero">
-        <div class="hero-content fade-in">
+        <div class="hero-content">
             <h2>Online SQL Console</h2>
-            <p>Type any SQL command — CREATE, INSERT, SELECT, UPDATE, DELETE — and run it live in your browser, from anywhere in the world.</p>
-            <div class="status-pill"><span class="pulse"></span> Live &amp; Ready</div>
+            <p>Type any SQL command and run it live — CREATE, INSERT, SELECT, UPDATE, DELETE, COMMIT, ROLLBACK</p>
         </div>
     </section>
 
-    <main class="container">
-        <div class="layout">
-            <aside class="side fade-in">
-                <section class="panel">
-                    <h3><span><i class="fas fa-table"></i> TABLES</span> <button id="refresh" title="refresh list"><i class="fas fa-rotate-right"></i></button></h3>
-                    <ul id="tables" class="tablelist"><li class="muted">loading…</li></ul>
-                </section>
-                <section class="panel">
-                    <h3><span><i class="fas fa-clock-rotate-left"></i> HISTORY</span> <button id="clearhist" title="clear history"><i class="fas fa-trash"></i></button></h3>
-                    <ol id="histlist" class="histlist"><li class="muted">no commands yet</li></ol>
-                </section>
-                <section class="panel">
-                    <h3><span><i class="fas fa-bolt"></i> QUICK RUNS</span></h3>
-                    <div class="chips">
-                        <button class="chip" data-sql="{{ tables_sql }}">show tables</button>
-                        <button class="chip" data-sql="SELECT * FROM students;">students data</button>
-                    </div>
-                </section>
-                <section class="panel danger-panel">
-                    <h3><span><i class="fas fa-triangle-exclamation"></i> DANGER ZONE</span></h3>
-                    <p class="danger-note">This deletes <b>ALL tables</b> and every row inside them. Cannot be undone!</p>
-                    <button id="cleardb" class="dangerbig"><i class="fas fa-trash-can"></i> DELETE DATABASE</button>
-                </section>
-            </aside>
+    <div class="container">
+        <div class="content-section">
+            <h2><i class="fas fa-terminal"></i> SQL Command Center</h2>
 
-            <section class="console-panel fade-in">
-                <form method="post" action="/" id="sqlform">
-                    <textarea id="sqlbox" name="sql" rows="5" spellcheck="false"
-                        placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
-                    <div class="btnrow">
-                        <button type="submit" class="runbtn"><i class="fas fa-play"></i> RUN</button>
-                        <button type="button" class="clearbtn" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()">CLEAR</button>
-                        <span class="hint">Ctrl + Enter to run</span>
-                    </div>
-                </form>
-
-                {% if results %}
-                <div class="output">
-                    {% for r in results %}
-                        <div class="echo">SQL&gt; {{ r.sql }};</div>
-                        {% if r.type == 'rows' %}
-                            {% if r.rows %}
-                            <div class="tblwrap">
-                            <table class="result">
-                                <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
-                                {% for row in r.rows %}
-                                <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
-                                {% endfor %}
-                            </table>
-                            </div>
-                            <div class="ok">{{ r.rows|length }} row(s) selected.</div>
-                            {% else %}
-                            <div class="ok">no rows selected</div>
-                            {% endif %}
-                        {% elif r.type == 'status' %}
-                            <div class="ok">{{ r.text }}</div>
-                        {% else %}
-                            <div class="err">ERROR at line 1:
-{{ r.text }}</div>
-                        {% endif %}
-                    {% endfor %}
+            <form method="post" action="/" id="sqlform">
+                <textarea id="sqlbox" class="sql-input" name="sql" rows="6" spellcheck="false"
+                    placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
+                <div class="btnrow">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-play-circle"></i> Run Query</button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()"><i class="fas fa-eraser"></i> Clear</button>
+                    <span class="hint">Ctrl + Enter to run · end statements with ;</span>
                 </div>
-                {% endif %}
-            </section>
+            </form>
+
+            {% if results %}
+            <div class="output">
+                {% for r in results %}
+                    <div class="echo">SQL&gt; {{ r.sql }};</div>
+                    {% if r.type == 'rows' %}
+                        {% if r.rows %}
+                        <div class="tblwrap">
+                        <table class="data-table">
+                            <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+                            {% for row in r.rows %}
+                            <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
+                            {% endfor %}
+                        </table>
+                        </div>
+                        <div class="ok">{{ r.rows|length }} row(s) selected.</div>
+                        {% else %}
+                        <div class="ok">no rows selected</div>
+                        {% endif %}
+                    {% elif r.type == 'status' %}
+                        <div class="ok">{{ r.text }}</div>
+                    {% else %}
+                        <div class="err">ERROR at line 1:
+{{ r.text }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="features" style="margin-top: 32px;">
+                <div class="feature">
+                    <div class="icon"><i class="fas fa-table"></i></div>
+                    <p>Create Tables</p>
+                </div>
+                <div class="feature">
+                    <div class="icon"><i class="fas fa-file-import"></i></div>
+                    <p>Insert Data</p>
+                </div>
+                <div class="feature">
+                    <div class="icon"><i class="fas fa-magnifying-glass"></i></div>
+                    <p>Run Queries</p>
+                </div>
+                <div class="feature">
+                    <div class="icon"><i class="fas fa-shield-halved"></i></div>
+                    <p>Safe Deletes</p>
+                </div>
+            </div>
         </div>
-    </main>
+
+        <div class="content-section">
+            <h2><i class="fas fa-table-list"></i> Your Tables</h2>
+            <div class="table-list" id="tableList">
+                <p class="empty-note">loading…</p>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:18px; flex-wrap:wrap;">
+                <a href="/database" class="btn btn-primary" style="text-decoration:none;"><i class="fas fa-arrow-right"></i> Open Database Manager</a>
+                <button type="button" class="btn btn-secondary" onclick="loadTables()"><i class="fas fa-rotate-right"></i> Refresh</button>
+            </div>
+        </div>
+
+        <div class="content-section danger-zone">
+            <h3><i class="fas fa-triangle-exclamation"></i> Danger Zone</h3>
+            <p>This deletes ALL tables and every row inside them. Cannot be undone!</p>
+            <button id="cleardb" class="btn btn-danger"><i class="fas fa-trash-can"></i> Delete Database</button>
+        </div>
+    </div>
 
     <footer>
         <div class="footer-content">
             <div class="footer-column">
                 <h3>SIVA SQL Console</h3>
-                <p>Practice real SQL online — create tables, insert data, run queries. Your commands, saved in history.</p>
+                <p>Practice real SQL online — create tables, insert data, run queries and manage your database from anywhere.</p>
             </div>
             <div class="footer-column">
-                <h3>Quick Commands</h3>
+                <h3>Quick Links</h3>
                 <ul>
-                    <li><a href="#" onclick="fill('CREATE TABLE mytable (id INTEGER PRIMARY KEY, name VARCHAR(50));');return false;">CREATE TABLE</a></li>
-                    <li><a href="#" onclick="fill('INSERT INTO mytable VALUES (1, \'siva\');');return false;">INSERT</a></li>
-                    <li><a href="#" onclick="fill('SELECT * FROM students;');return false;">SELECT</a></li>
-                    <li><a href="#" onclick="fill('UPDATE mytable SET name = \'new\' WHERE id = 1;');return false;">UPDATE</a></li>
-                    <li><a href="#" onclick="fill('DELETE FROM mytable WHERE id = 1;');return false;">DELETE</a></li>
+                    <li><a href="/"><i class="fas fa-home"></i> SQL Console</a></li>
+                    <li><a href="/database"><i class="fas fa-table-list"></i> Database Manager</a></li>
+                    <li><a href="#" onclick="fill('{{ tables_sql }}');return false;"><i class="fas fa-list"></i> Show Tables Query</a></li>
                 </ul>
             </div>
             <div class="footer-column">
-                <h3>Learn</h3>
+                <h3>Supported Commands</h3>
                 <ul>
-                    <li><a href="/students"><i class="fas fa-graduation-cap"></i> Student Manager demo</a></li>
-                    <li><a href="#" onclick="fill('{{ tables_sql }}');return false;"><i class="fas fa-table-list"></i> Show all tables</a></li>
+                    <li><a href="#">CREATE TABLE</a></li>
+                    <li><a href="#">INSERT / SELECT / UPDATE / DELETE</a></li>
+                    <li><a href="#">COMMIT / ROLLBACK</a></li>
+                    <li><a href="#">DROP TABLE</a></li>
                 </ul>
             </div>
         </div>
@@ -129,7 +142,6 @@
 <script>
 const box = document.getElementById('sqlbox');
 const form = document.getElementById('sqlform');
-
 function fill(v) { box.value = v; box.focus(); }
 
 function saveHist(v) {
@@ -138,60 +150,50 @@ function saveHist(v) {
     localStorage.setItem('sqlhist', JSON.stringify(arr.slice(0, 30)));
 }
 function renderHist() {
-    const ol = document.getElementById('histlist');
-    const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]');
-    ol.innerHTML = '';
-    if (!arr.length) { ol.innerHTML = '<li class="muted">no commands yet</li>'; return; }
-    arr.forEach(s => {
-        const li = document.createElement('li');
-        li.textContent = s.length > 46 ? s.slice(0, 46) + '…' : s;
-        li.title = s;
-        li.onclick = () => { box.value = s; box.focus(); };
-        ol.appendChild(li);
-    });
+    const saved = JSON.parse(localStorage.getItem('sqlhist') || '[]');
+    if (saved.length && !box.value.trim()) {
+        const last = saved[0];
+        if (!box.dataset.hinted) { box.placeholder = 'Last: ' + (last.length > 60 ? last.slice(0, 60) + '…' : last); }
+    }
 }
-document.getElementById('clearhist').onclick = () => { localStorage.removeItem('sqlhist'); renderHist(); };
+form.addEventListener('submit', () => {
+    const v = box.value.trim();
+    if (v) saveHist(v);
+});
+box.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
+});
 
 async function loadTables() {
-    const ul = document.getElementById('tables');
+    const list = document.getElementById('tableList');
     try {
         const res = await fetch('/api/table_counts');
         const data = await res.json();
-        ul.innerHTML = '';
-        if (!data.tables.length) { ul.innerHTML = '<li class="muted">no tables yet — CREATE one!</li>'; return; }
+        list.innerHTML = '';
+        if (!data.tables.length) { list.innerHTML = '<p class="empty-note">No tables yet — CREATE one in the console above!</p>'; return; }
         data.tables.forEach(t => {
-            const li = document.createElement('li');
-            li.className = 'trow';
-            li.innerHTML =
-                '<span class="tmain"><i class="fas fa-table-cells"></i>' + t.name + '</span>' +
+            const card = document.createElement('div');
+            card.className = 'table-card';
+            card.innerHTML =
+                '<span class="table-name"><i class="fas fa-table-cells"></i>' + t.name +
+                '<span class="badge">' + t.rows + ' rows</span></span>' +
                 '<span class="tactions">' +
-                    '<span class="badge">' + t.rows + '</span>' +
-                    '<i class="fas fa-trash tdel" title="DROP TABLE ' + t.name + '"></i>' +
+                    '<a class="mini-btn mini-view" href="/database?table=' + t.name + '"><i class="fas fa-eye"></i> View</a>' +
+                    '<button class="mini-btn mini-drop"><i class="fas fa-trash"></i> Drop</button>' +
                 '</span>';
-            li.title = 'click to view rows';
-            li.onclick = () => { box.value = 'SELECT * FROM ' + t.name + ';'; saveHist(box.value); form.submit(); };
-            li.querySelector('.tdel').onclick = (ev) => {
-                ev.stopPropagation();
+            card.querySelector('.mini-drop').onclick = () => {
                 if (!confirm('DROP TABLE "' + t.name + '"?\n\nAll its rows will be permanently deleted.')) return;
                 fetch('/api/drop_table', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: t.name }) })
-                    .then(r => r.json()).then(d => {
-                        if (d.ok) toast('Table "' + t.name + '" dropped 🗑️'); else toast(d.error, false);
-                        loadTables();
-                    });
+                    .then(r => r.json()).then(d => { toast(d.ok ? 'Table "' + t.name + '" dropped 🗑️' : d.error, d.ok); loadTables(); });
             };
-            ul.appendChild(li);
+            list.appendChild(card);
         });
-    } catch (e) { ul.innerHTML = '<li class="muted">unavailable</li>'; }
+    } catch (e) { list.innerHTML = '<p class="empty-note">unavailable</p>'; }
 }
-document.getElementById('refresh').onclick = loadTables;
 
 document.getElementById('cleardb').onclick = () => {
     if (!confirm('DELETE THE ENTIRE DATABASE?\n\nEvery table and every row will be permanently removed.\nThis cannot be undone!')) return;
-    fetch('/api/clear_database', { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.ok) { toast('Database cleared. Fresh start! 🧹'); renderHist(); } else toast(d.error, false);
-            loadTables();
-        });
+    fetch('/api/clear_database', { method: 'POST' }).then(r => r.json()).then(d => { toast(d.ok ? 'Database cleared. Fresh start! 🧹' : d.error, d.ok); loadTables(); });
 };
 
 function toast(msg, ok = true) {
@@ -201,21 +203,6 @@ function toast(msg, ok = true) {
     document.getElementById('toasts').appendChild(d);
     setTimeout(() => { d.classList.add('bye'); setTimeout(() => d.remove(), 400); }, 3400);
 }
-
-document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => { box.value = ch.dataset.sql; form.submit(); });
-
-box.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
-});
-form.addEventListener('submit', () => {
-    const v = box.value.trim();
-    if (v) saveHist(v);
-});
-
-const io = new IntersectionObserver(entries => {
-    entries.forEach(en => { if (en.isIntersecting) en.target.classList.add('fade-in'); });
-}, { threshold: .08 });
-document.querySelectorAll('.panel, .console-panel').forEach(el => io.observe(el));
 
 renderHist();
 loadTables();
