@@ -4,88 +4,126 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIVA — Online SQL Console</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header class="topbar">
-        <div class="brand">SIVA<span class="brand-sub">SQL CONSOLE</span></div>
-        <div class="status-pill"><span class="pulse"></span>{{ backend }} · Live</div>
-        <nav>
-            <a href="/students" class="navlink">🎓 Student Manager</a>
-        </nav>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon"><span>S</span></div>
+                <h1>SIVA <span>SQL Console</span></h1>
+            </div>
+            <nav class="top-links">
+                <a href="/students"><i class="fas fa-graduation-cap"></i> Student Manager</a>
+            </nav>
+        </div>
     </header>
 
-    <main class="layout">
-        <aside class="side">
-            <section class="panel">
-                <h3>TABLES <button id="refresh" title="refresh list">↻</button></h3>
-                <ul id="tables" class="tablelist"><li class="muted">loading…</li></ul>
-            </section>
-            <section class="panel">
-                <h3>HISTORY</h3>
-                <ol id="histlist" class="histlist"><li class="muted">no commands yet</li></ol>
-                <button id="clearhist" class="ghostbtn">clear history</button>
-            </section>
-            <section class="panel">
-                <h3>QUICK RUNS</h3>
-                <div class="chips">
-                    <button class="chip" data-sql="{{ tables_sql }}">show tables</button>
-                    <button class="chip" data-sql="SELECT * FROM students;">students data</button>
-                </div>
-            </section>
-        </aside>
+    <section class="hero">
+        <div class="hero-content fade-in">
+            <h2>Online SQL Console</h2>
+            <p>Type any SQL command — CREATE, INSERT, SELECT, UPDATE, DELETE — and run it live in your browser, from anywhere in the world.</p>
+            <div class="status-pill"><span class="pulse"></span> Live &amp; Ready</div>
+        </div>
+    </section>
 
-        <section class="console">
-            <div class="banner">
-SQL*Plus Web by SIVA — type any SQL and press RUN (or Ctrl+Enter). End statements with ;
-CREATE TABLE · INSERT · SELECT · UPDATE · DELETE · COMMIT · ROLLBACK · DROP — all supported
-            </div>
+    <main class="container">
+        <div class="layout">
+            <aside class="side fade-in">
+                <section class="panel">
+                    <h3><span><i class="fas fa-table"></i> TABLES</span> <button id="refresh" title="refresh list"><i class="fas fa-rotate-right"></i></button></h3>
+                    <ul id="tables" class="tablelist"><li class="muted">loading…</li></ul>
+                </section>
+                <section class="panel">
+                    <h3><span><i class="fas fa-clock-rotate-left"></i> HISTORY</span> <button id="clearhist" title="clear history"><i class="fas fa-trash"></i></button></h3>
+                    <ol id="histlist" class="histlist"><li class="muted">no commands yet</li></ol>
+                </section>
+                <section class="panel">
+                    <h3><span><i class="fas fa-bolt"></i> QUICK RUNS</span></h3>
+                    <div class="chips">
+                        <button class="chip" data-sql="{{ tables_sql }}">show tables</button>
+                        <button class="chip" data-sql="SELECT * FROM students;">students data</button>
+                    </div>
+                </section>
+            </aside>
 
-            <form method="post" action="/" id="sqlform">
-                <textarea id="sqlbox" name="sql" rows="5" spellcheck="false"
-                    placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
-                <div class="btnrow">
-                    <button type="submit" class="run">▶ RUN</button>
-                    <button type="button" class="clear" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()">CLEAR</button>
-                    <span class="hint">Ctrl+Enter to run</span>
-                </div>
-            </form>
+            <section class="console-panel fade-in">
+                <form method="post" action="/" id="sqlform">
+                    <textarea id="sqlbox" name="sql" rows="5" spellcheck="false"
+                        placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
+                    <div class="btnrow">
+                        <button type="submit" class="runbtn"><i class="fas fa-play"></i> RUN</button>
+                        <button type="button" class="clearbtn" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()">CLEAR</button>
+                        <span class="hint">Ctrl + Enter to run</span>
+                    </div>
+                </form>
 
-            {% if results %}
-            <div class="output">
-                {% for r in results %}
-                    <div class="echo">SQL&gt; {{ r.sql }};</div>
-                    {% if r.type == 'rows' %}
-                        {% if r.rows %}
-                        <div class="tblwrap">
-                        <table class="result">
-                            <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
-                            {% for row in r.rows %}
-                            <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
-                            {% endfor %}
-                        </table>
-                        </div>
-                        <div class="ok">{{ r.rows|length }} row(s) selected.</div>
+                {% if results %}
+                <div class="output">
+                    {% for r in results %}
+                        <div class="echo">SQL&gt; {{ r.sql }};</div>
+                        {% if r.type == 'rows' %}
+                            {% if r.rows %}
+                            <div class="tblwrap">
+                            <table class="result">
+                                <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+                                {% for row in r.rows %}
+                                <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
+                                {% endfor %}
+                            </table>
+                            </div>
+                            <div class="ok">{{ r.rows|length }} row(s) selected.</div>
+                            {% else %}
+                            <div class="ok">no rows selected</div>
+                            {% endif %}
+                        {% elif r.type == 'status' %}
+                            <div class="ok">{{ r.text }}</div>
                         {% else %}
-                        <div class="ok">no rows selected</div>
-                        {% endif %}
-                    {% elif r.type == 'status' %}
-                        <div class="ok">{{ r.text }}</div>
-                    {% else %}
-                        <div class="err">ERROR at line 1:
+                            <div class="err">ERROR at line 1:
 {{ r.text }}</div>
-                    {% endif %}
-                {% endfor %}
-            </div>
-            {% endif %}
-        </section>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+        </div>
     </main>
 
-    <footer class="foot">© 2026 SIVA — all rights reserved · Flask + PostgreSQL on Render</footer>
+    <footer>
+        <div class="footer-content">
+            <div class="footer-column">
+                <h3>SIVA SQL Console</h3>
+                <p>Practice real SQL online — create tables, insert data, run queries. Your commands, saved in history.</p>
+            </div>
+            <div class="footer-column">
+                <h3>Quick Commands</h3>
+                <ul>
+                    <li><a href="#" onclick="fill('CREATE TABLE mytable (id INTEGER PRIMARY KEY, name VARCHAR(50));');return false;">CREATE TABLE</a></li>
+                    <li><a href="#" onclick="fill('INSERT INTO mytable VALUES (1, \'siva\');');return false;">INSERT</a></li>
+                    <li><a href="#" onclick="fill('SELECT * FROM students;');return false;">SELECT</a></li>
+                    <li><a href="#" onclick="fill('UPDATE mytable SET name = \'new\' WHERE id = 1;');return false;">UPDATE</a></li>
+                    <li><a href="#" onclick="fill('DELETE FROM mytable WHERE id = 1;');return false;">DELETE</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Learn</h3>
+                <ul>
+                    <li><a href="/students"><i class="fas fa-graduation-cap"></i> Student Manager demo</a></li>
+                    <li><a href="#" onclick="fill('{{ tables_sql }}');return false;"><i class="fas fa-table-list"></i> Show all tables</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>&copy; 2026 SIVA. All rights reserved.</p>
+        </div>
+    </footer>
 
 <script>
 const box = document.getElementById('sqlbox');
 const form = document.getElementById('sqlform');
+
+function fill(v) { box.value = v; box.focus(); }
 
 function saveHist(v) {
     const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]').filter(x => x !== v);
@@ -116,7 +154,7 @@ async function loadTables() {
         if (!data.tables.length) { ul.innerHTML = '<li class="muted">no tables yet — CREATE one!</li>'; return; }
         data.tables.forEach(t => {
             const li = document.createElement('li');
-            li.innerHTML = '▦ ' + t;
+            li.innerHTML = '<i class="fas fa-table-cells" style="margin-right:7px;color:#f05333"></i>' + t;
             li.title = 'click to view rows';
             li.onclick = () => { box.value = 'SELECT * FROM ' + t + ';'; saveHist(box.value); form.submit(); };
             ul.appendChild(li);
@@ -134,6 +172,11 @@ form.addEventListener('submit', () => {
     const v = box.value.trim();
     if (v) saveHist(v);
 });
+
+const io = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting) en.target.classList.add('fade-in'); });
+}, { threshold: .08 });
+document.querySelectorAll('.panel, .console-panel').forEach(el => io.observe(el));
 
 renderHist();
 loadTables();
