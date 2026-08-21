@@ -7,6 +7,8 @@ import db
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
+db.ensure_dual()
+
 
 @app.route("/", methods=["GET", "POST"])
 def console():

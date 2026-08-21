@@ -56,6 +56,7 @@ def run_sql(sql_text):
     try:
         for stmt in split_statements(sql_text):
             entry = {"sql": stmt}
+            translated = oracle_compat(stmt)
             try:
                 if not USE_POSTGRES and stmt.upper() == "COMMIT":
                     conn.commit()
@@ -67,7 +68,7 @@ def run_sql(sql_text):
                     entry.update(type="status", text="Rollback complete.")
                     results.append(entry)
                     continue
-                cur = conn.execute(stmt)
+                cur = conn.execute(translated)
                 if cur.description:
                     cols = [d[0] for d in cur.description]
                     rows = [tuple(r) for r in cur.fetchall()]
@@ -94,6 +95,55 @@ def run_sql(sql_text):
 
 
 IDENT_OK = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def oracle_compat(sql):
+    out = []
+    i, n = 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if ch == "'":
+            out.append(ch)
+            j = i + 1
+            while j < n:
+                if sql[j] == "'":
+                    if j + 1 < n and sql[j + 1] == "'":
+                        out.append("''")
+                        j += 2
+                        continue
+                    out.append("'")
+                    j += 1
+                    break
+                out.append(sql[j])
+                j += 1
+            i = j
+            continue
+        out.append(ch)
+        i += 1
+    s = "".join(out)
+    s = re.sub(r"\bVARCHAR2\s*\(", "VARCHAR(", s, flags=re.I)
+    s = re.sub(r"\bNUMBER\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", lambda m: f"NUMERIC({m.group(1)},{m.group(2)})", s, flags=re.I)
+    s = re.sub(r"\bNUMBER\s*\(\s*(\d+)\s*\)", lambda m: f"NUMERIC({m.group(1)})", s, flags=re.I)
+    s = re.sub(r"\bNUMBER\b", "NUMERIC", s, flags=re.I)
+    s = re.sub(r"\bSYSDATE\b", "CURRENT_TIMESTAMP", s, flags=re.I)
+    s = re.sub(r"\bNVL\s*\(", "COALESCE(", s, flags=re.I)
+    s = re.sub(r"\bDATE\b", "TIMESTAMP", s)
+    return s
+
+
+def ensure_dual():
+    try:
+        conn = get_conn()
+        try:
+            if USE_POSTGRES:
+                conn.execute("CREATE OR REPLACE VIEW dual AS SELECT 'X'::text AS dummy")
+            else:
+                conn.execute("CREATE VIEW IF NOT EXISTS dual AS SELECT 'X' AS dummy")
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
 
 
 def list_tables():
