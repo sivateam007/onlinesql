@@ -18,7 +18,24 @@ def console():
         submitted = request.form.get("sql", "").strip()
         if submitted:
             results = db.run_sql(submitted)
-    return render_template("index.html", results=results, submitted=submitted)
+    if db.USE_POSTGRES:
+        backend = "PostgreSQL"
+        tables_sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
+    else:
+        backend = "SQLite (local demo)"
+        tables_sql = "SELECT name FROM sqlite_master WHERE type = 'table';"
+    return render_template(
+        "index.html",
+        results=results,
+        submitted=submitted,
+        backend=backend,
+        tables_sql=tables_sql,
+    )
+
+
+@app.route("/api/tables")
+def api_tables():
+    return {"tables": db.list_tables()}
 
 
 @app.route("/students")

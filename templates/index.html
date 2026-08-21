@@ -7,27 +7,47 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="term-wrap">
-        <div class="term-header">
-            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
-            <span class="title"><span class="brand">SIVA</span> · SQL*Plus Web — Online SQL Console</span>
-            <a href="/students" class="navlink">🎓 Student Manager demo</a>
-        </div>
+    <header class="topbar">
+        <div class="brand">SIVA<span class="brand-sub">SQL CONSOLE</span></div>
+        <div class="status-pill"><span class="pulse"></span>{{ backend }} · Live</div>
+        <nav>
+            <a href="/students" class="navlink">🎓 Student Manager</a>
+        </nav>
+    </header>
 
-        <div class="term-body">
+    <main class="layout">
+        <aside class="side">
+            <section class="panel">
+                <h3>TABLES <button id="refresh" title="refresh list">↻</button></h3>
+                <ul id="tables" class="tablelist"><li class="muted">loading…</li></ul>
+            </section>
+            <section class="panel">
+                <h3>HISTORY</h3>
+                <ol id="histlist" class="histlist"><li class="muted">no commands yet</li></ol>
+                <button id="clearhist" class="ghostbtn">clear history</button>
+            </section>
+            <section class="panel">
+                <h3>QUICK RUNS</h3>
+                <div class="chips">
+                    <button class="chip" data-sql="{{ tables_sql }}">show tables</button>
+                    <button class="chip" data-sql="SELECT * FROM students;">students data</button>
+                </div>
+            </section>
+        </aside>
+
+        <section class="console">
             <div class="banner">
-SQL*Plus Web: Release 1.0 — connected to PostgreSQL on Render
-Type any SQL command and press RUN (or Ctrl+Enter). End statements with ;
-Examples: CREATE TABLE ... / INSERT / SELECT / UPDATE / DELETE / DROP TABLE
+SQL*Plus Web by SIVA — type any SQL and press RUN (or Ctrl+Enter). End statements with ;
+CREATE TABLE · INSERT · SELECT · UPDATE · DELETE · COMMIT · ROLLBACK · DROP — all supported
             </div>
 
-            <form method="post" action="/">
+            <form method="post" action="/" id="sqlform">
                 <textarea id="sqlbox" name="sql" rows="5" spellcheck="false"
                     placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
                 <div class="btnrow">
                     <button type="submit" class="run">▶ RUN</button>
-                    <select id="history"></select>
-                    <button type="button" class="clear" onclick="document.getElementById('sqlbox').value=''">CLEAR</button>
+                    <button type="button" class="clear" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()">CLEAR</button>
+                    <span class="hint">Ctrl+Enter to run</span>
                 </div>
             </form>
 
@@ -37,12 +57,14 @@ Examples: CREATE TABLE ... / INSERT / SELECT / UPDATE / DELETE / DROP TABLE
                     <div class="echo">SQL&gt; {{ r.sql }};</div>
                     {% if r.type == 'rows' %}
                         {% if r.rows %}
+                        <div class="tblwrap">
                         <table class="result">
                             <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
                             {% for row in r.rows %}
                             <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
                             {% endfor %}
                         </table>
+                        </div>
                         <div class="ok">{{ r.rows|length }} row(s) selected.</div>
                         {% else %}
                         <div class="ok">no rows selected</div>
@@ -56,27 +78,66 @@ Examples: CREATE TABLE ... / INSERT / SELECT / UPDATE / DELETE / DROP TABLE
                 {% endfor %}
             </div>
             {% endif %}
-            </div>
-            <footer class="term-footer">© 2026 SIVA — all rights reserved · built with Flask + PostgreSQL</footer>
-        </div>
-    </div>
+        </section>
+    </main>
+
+    <footer class="foot">© 2026 SIVA — all rights reserved · Flask + PostgreSQL on Render</footer>
 
 <script>
 const box = document.getElementById('sqlbox');
-box.addEventListener('keydown', e => {
-    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); box.form.submit(); }
-});
-const hist = document.getElementById('history');
-const saved = JSON.parse(localStorage.getItem('sqlhist') || '[]');
-saved.forEach(s => { const o = document.createElement('option'); o.textContent = s.length > 60 ? s.slice(0, 60) + '…' : s; o.value = s; hist.appendChild(o); });
-hist.addEventListener('change', () => { if (hist.value) { box.value = hist.value; box.focus(); } });
-document.querySelector('form').addEventListener('submit', () => {
-    const v = box.value.trim();
-    if (!v) return;
+const form = document.getElementById('sqlform');
+
+function saveHist(v) {
     const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]').filter(x => x !== v);
     arr.unshift(v);
-    localStorage.setItem('sqlhist', JSON.stringify(arr.slice(0, 25)));
+    localStorage.setItem('sqlhist', JSON.stringify(arr.slice(0, 30)));
+}
+function renderHist() {
+    const ol = document.getElementById('histlist');
+    const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]');
+    ol.innerHTML = '';
+    if (!arr.length) { ol.innerHTML = '<li class="muted">no commands yet</li>'; return; }
+    arr.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = s.length > 46 ? s.slice(0, 46) + '…' : s;
+        li.title = s;
+        li.onclick = () => { box.value = s; box.focus(); };
+        ol.appendChild(li);
+    });
+}
+document.getElementById('clearhist').onclick = () => { localStorage.removeItem('sqlhist'); renderHist(); };
+
+async function loadTables() {
+    const ul = document.getElementById('tables');
+    try {
+        const res = await fetch('/api/tables');
+        const data = await res.json();
+        ul.innerHTML = '';
+        if (!data.tables.length) { ul.innerHTML = '<li class="muted">no tables yet — CREATE one!</li>'; return; }
+        data.tables.forEach(t => {
+            const li = document.createElement('li');
+            li.innerHTML = '▦ ' + t;
+            li.title = 'click to view rows';
+            li.onclick = () => { box.value = 'SELECT * FROM ' + t + ';'; saveHist(box.value); form.submit(); };
+            ul.appendChild(li);
+        });
+    } catch (e) { ul.innerHTML = '<li class="muted">unavailable</li>'; }
+}
+document.getElementById('refresh').onclick = loadTables;
+
+document.querySelectorAll('.chip').forEach(ch => ch.onclick = () => { box.value = ch.dataset.sql; form.submit(); });
+
+box.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
 });
+form.addEventListener('submit', () => {
+    const v = box.value.trim();
+    if (v) saveHist(v);
+});
+
+renderHist();
+loadTables();
+box.focus();
 </script>
 </body>
 </html>

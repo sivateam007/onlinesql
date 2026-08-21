@@ -92,6 +92,19 @@ def run_sql(sql_text):
     return results
 
 
+def list_tables():
+    if USE_POSTGRES:
+        sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
+    else:
+        sql = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    conn = get_conn()
+    try:
+        cur = conn.execute(sql)
+        return [r[0] for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS students (
     sid    INTEGER PRIMARY KEY,
