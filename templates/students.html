@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 Student Manager</h1>
+        <p class="subtitle">Full-stack CRUD app &mdash; <a href="/" class="backlink">← back to SQL console</a></p>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <div class="flash">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="card">
+            <h2>Add a student</h2>
+            <form action="/add" method="post" class="add-form">
+                <input type="number" name="sid" placeholder="SID (number)" required>
+                <input type="text" name="name" placeholder="Name" maxlength="50" required>
+                <input type="text" name="mobile" placeholder="Mobile (text!)" maxlength="15">
+                <button type="submit">INSERT ➕</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>All students
+                {% if students %}<span class="count">SELECT * FROM students → {{ students|length }} rows</span>{% endif %}
+            </h2>
+            {% if students %}
+            <table class="pretty">
+                <tr><th>SID</th><th>Name</th><th>Mobile</th><th></th></tr>
+                {% for sid, name, mobile in students %}
+                <tr>
+                    <td>{{ sid }}</td>
+                    <td>{{ name }}</td>
+                    <td>{{ mobile or '—' }}</td>
+                    <td>
+                        <form action="/delete" method="post" class="inline">
+                            <input type="hidden" name="sid" value="{{ sid }}">
+                            <button type="submit" class="danger">DELETE 🗑️</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <p class="empty">No rows yet — add your first student above!</p>
+            {% endif %}
+        </div>
+
+        <footer>Every button runs real SQL behind the scenes — watch the yellow messages! 💛</footer>
+    </div>
+</body>
+</html>

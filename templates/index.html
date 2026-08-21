@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online SQL Console</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="term-wrap">
+        <div class="term-header">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="title">SQL*Plus Web — Online SQL Console</span>
+            <a href="/students" class="navlink">🎓 Student Manager demo</a>
+        </div>
+
+        <div class="term-body">
+            <div class="banner">
+SQL*Plus Web: Release 1.0 — connected to PostgreSQL on Render
+Type any SQL command and press RUN (or Ctrl+Enter). End statements with ;
+Examples: CREATE TABLE ... / INSERT / SELECT / UPDATE / DELETE / DROP TABLE
+            </div>
+
+            <form method="post" action="/">
+                <textarea id="sqlbox" name="sql" rows="5" spellcheck="false"
+                    placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
+                <div class="btnrow">
+                    <button type="submit" class="run">▶ RUN</button>
+                    <select id="history"></select>
+                    <button type="button" class="clear" onclick="document.getElementById('sqlbox').value=''">CLEAR</button>
+                </div>
+            </form>
+
+            {% if results %}
+            <div class="output">
+                {% for r in results %}
+                    <div class="echo">SQL&gt; {{ r.sql }};</div>
+                    {% if r.type == 'rows' %}
+                        {% if r.rows %}
+                        <table class="result">
+                            <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+                            {% for row in r.rows %}
+                            <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
+                            {% endfor %}
+                        </table>
+                        <div class="ok">{{ r.rows|length }} row(s) selected.</div>
+                        {% else %}
+                        <div class="ok">no rows selected</div>
+                        {% endif %}
+                    {% elif r.type == 'status' %}
+                        <div class="ok">{{ r.text }}</div>
+                    {% else %}
+                        <div class="err">ERROR at line 1:
+{{ r.text }}</div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+<script>
+const box = document.getElementById('sqlbox');
+box.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); box.form.submit(); }
+});
+const hist = document.getElementById('history');
+const saved = JSON.parse(localStorage.getItem('sqlhist') || '[]');
+saved.forEach(s => { const o = document.createElement('option'); o.textContent = s.length > 60 ? s.slice(0, 60) + '…' : s; o.value = s; hist.appendChild(o); });
+hist.addEventListener('change', () => { if (hist.value) { box.value = hist.value; box.focus(); } });
+document.querySelector('form').addEventListener('submit', () => {
+    const v = box.value.trim();
+    if (!v) return;
+    const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]').filter(x => x !== v);
+    arr.unshift(v);
+    localStorage.setItem('sqlhist', JSON.stringify(arr.slice(0, 25)));
+});
+</script>
+</body>
+</html>
