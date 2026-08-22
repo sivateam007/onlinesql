@@ -163,6 +163,11 @@ _ORACLE_RULES = [
         r"STRING_AGG(\1 ORDER BY \2)",
         re.I,
     ),
+    (
+        r"\bMODIFY\s+([A-Za-z_]\w*)\s+(NUMERIC(?:\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?|VARCHAR\s*\(\s*\d+\s*\)|TIMESTAMP)\b",
+        r"ALTER COLUMN \1 TYPE \2",
+        re.I,
+    ),
 ]
 
 
