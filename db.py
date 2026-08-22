@@ -18,7 +18,9 @@ else:
     DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "students.db")
 
     def get_conn():
-        return sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
 
 def split_statements(text):
@@ -65,8 +67,12 @@ def _error_hint(err_text):
         if "modify" in t:
             return "Changing a column type (ALTER ... MODIFY) works on the cloud database — the local demo engine doesn't support it."
         return "Check spelling, commas, quotes and closing brackets. End each statement with ;"
-    if "unique constraint" in t or "primary key" in t:
+    if "unique constraint" in t or "primary key" in t or "unique constraint failed" in t:
         return "That value already exists and must stay unique (PRIMARY KEY / UNIQUE rule)."
+    if "check constraint" in t or "violates check" in t:
+        return "That value breaks a CHECK rule defined on this column (e.g. age >= 18)."
+    if "foreign key constraint" in t or "violates foreign key" in t:
+        return "Foreign key violation — the referenced parent row doesn't exist. Insert the parent table row first."
     if "already exists" in t:
         return "An object with this name already exists. Use a new name or DROP the old one first."
     return None
@@ -170,6 +176,11 @@ _ORACLE_RULES = [
         r"CAST(\1 AS TEXT)",
         re.I,
     ),
+    (
+        r"\bINSTR\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
+        lambda m: f"POSITION({m.group(2)} IN {m.group(1)})",
+        re.I,
+    ),
 ]
 
 _MODIFY_RULE = (
@@ -178,9 +189,40 @@ _MODIFY_RULE = (
     re.I,
 )
 
+_PG_ONLY_RULES = [
+    (
+        r"\bADD_MONTHS\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
+        lambda m: f"(({m.group(1)}) + INTERVAL '1 month' * ({m.group(2)}))",
+        re.I,
+    ),
+    (
+        r"\bLAST_DAY\s*\(\s*([^,()]+?)\s*\)",
+        lambda m: f"(date_trunc('month', ({m.group(1)})) + INTERVAL '1 month - 1 day')",
+        re.I,
+    ),
+    (
+        r"\bMONTHS_BETWEEN\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
+        lambda m: f"((EXTRACT(YEAR FROM AGE(({m.group(1)}), ({m.group(2)}))) * 12 + EXTRACT(MONTH FROM AGE(({m.group(1)}), ({m.group(2)})))))",
+        re.I,
+    ),
+    (
+        r"\b([A-Za-z_]\w*)\s*\.\s*NEXTVAL\b",
+        lambda m: f"nextval('{m.group(1)}')",
+        re.I,
+    ),
+    (
+        r"\b([A-Za-z_]\w*)\s*\.\s*CURRVAL\b",
+        lambda m: f"currval('{m.group(1)}')",
+        re.I,
+    ),
+]
+
 
 def _rules_for(pg):
-    return _ORACLE_RULES + [_MODIFY_RULE] if pg else list(_ORACLE_RULES)
+    rules = list(_ORACLE_RULES)
+    if pg:
+        rules += [_MODIFY_RULE] + _PG_ONLY_RULES
+    return rules
 
 
 def _find_close(s, open_idx):
@@ -210,6 +252,26 @@ def _split_top_args(argstr):
     if cur.strip():
         args.append(cur.strip())
     return args
+
+
+def _nvl2_to_case(chunk):
+    i = 0
+    while True:
+        m = re.search(r"\bNVL2\s*\(", chunk[i:], re.I)
+        if not m:
+            return chunk
+        start = i + m.start()
+        open_paren = i + m.end() - 1
+        close = _find_close(chunk, open_paren)
+        if close < 0:
+            return chunk
+        args = _split_top_args(chunk[open_paren + 1 : close])
+        if len(args) == 3:
+            rep = f"CASE WHEN {args[0]} IS NOT NULL THEN {args[1]} ELSE {args[2]} END"
+        else:
+            rep = chunk[start : close + 1]
+        chunk = chunk[:start] + rep + chunk[close + 1 :]
+        i = start + len(rep)
 
 
 def _decode_to_case(chunk):
@@ -267,6 +329,7 @@ def oracle_compat(sql, pg=None):
 
     masked = re.sub(r"'(?:[^']|'')*'", stash, sql)
     masked = _decode_to_case(masked)
+    masked = _nvl2_to_case(masked)
     for pat, rep, fl in rules:
         masked = re.sub(pat, rep, masked, flags=fl)
     masked = _rownum_to_limit(masked)
