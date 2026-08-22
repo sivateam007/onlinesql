@@ -170,7 +170,8 @@ _ORACLE_RULES = [
     (r"\bNUMBER\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", lambda m: f"NUMERIC({m.group(1)},{m.group(2)})", re.I),
     (r"\bNUMBER\s*\(\s*(\d+)\s*\)", lambda m: f"NUMERIC({m.group(1)})", re.I),
     (r"\bNUMBER\b", "NUMERIC", re.I),
-    (r"\bSYSDATE\b", "CURRENT_TIMESTAMP", re.I),
+    (r"\bTRUNC\s*\(\s*SYSDATE\s*\)", "CURRENT_DATE", re.I),
+    (r"\bSYSDATE\b", "CURRENT_DATE", re.I),
     (r"\bNVL\s*\(", "COALESCE(", re.I),
     (r"\bMINUS\b", "EXCEPT", re.I),
     (r"\bDATE\b", "TIMESTAMP", 0),
@@ -225,8 +226,8 @@ _PG_ONLY_RULES = [
     ),
     (r"\bSYSTIMESTAMP\b", "CURRENT_TIMESTAMP", re.I),
     (
-        r"\bTRUNC\s*\(\s*(?:SYSDATE|CURRENT_TIMESTAMP)\s*\)",
-        "date_trunc('day', CURRENT_TIMESTAMP)",
+        r"\bREGEXP_REPLACE\s*\(\s*([^,]+?),\s*([^,]+?),\s*([^)]+?)\s*\)",
+        lambda m: f"regexp_replace({m.group(1)}, {m.group(2)}, {m.group(3)}, 'g')",
         re.I,
     ),
     (
