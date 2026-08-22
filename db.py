@@ -260,27 +260,30 @@ def describe_table(name):
     try:
         if USE_POSTGRES:
             cur = conn.execute(
-                "SELECT column_name, is_nullable, data_type FROM information_schema.columns "
+                "SELECT column_name, is_nullable, data_type, character_maximum_length, "
+                "numeric_precision, numeric_scale FROM information_schema.columns "
                 "WHERE table_name = %s ORDER BY ordinal_position",
                 [name.lower()],
             )
             raw = cur.fetchall()
             if not raw:
                 return None
-            pg_map = {
-                "character varying": "VARCHAR",
-                "numeric": "NUMBER",
-                "integer": "NUMBER",
-                "bigint": "NUMBER",
-                "smallint": "NUMBER",
-                "timestamp without time zone": "DATE",
-                "timestamp with time zone": "TIMESTAMP",
-                "text": "VARCHAR2",
-                "boolean": "BOOLEAN",
-            }
             out = []
-            for cname, nullable, dtype in raw:
-                t = next((o for p, o in pg_map.items() if dtype.startswith(p)), dtype.upper())
+            for cname, nullable, dtype, clen, nprec, nscale in raw:
+                if dtype.startswith("character varying"):
+                    t = f"VARCHAR2({clen})" if clen else "VARCHAR2"
+                elif dtype == "numeric":
+                    t = f"NUMBER({nprec},{nscale})" if nscale else (f"NUMBER({nprec})" if nprec else "NUMBER")
+                elif dtype.startswith("timestamp"):
+                    t = "DATE"
+                elif dtype in ("integer", "bigint", "smallint"):
+                    t = "NUMBER"
+                elif dtype == "text":
+                    t = "VARCHAR2"
+                elif dtype == "boolean":
+                    t = "BOOLEAN"
+                else:
+                    t = dtype.upper()
                 out.append((cname.upper(), "" if nullable == "YES" else "NOT NULL", t))
             return out
         cur = conn.execute(f'PRAGMA table_info("{name}")')
