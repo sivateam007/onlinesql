@@ -186,6 +186,11 @@ _ORACLE_RULES = [
         re.I,
     ),
     (
+        r"\bTO_NUMBER\s*\(\s*([^,()]+?)\s*\)",
+        r"CAST(\1 AS NUMERIC)",
+        re.I,
+    ),
+    (
         r"\bINSTR\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
         lambda m: f"POSITION({m.group(2)} IN {m.group(1)})",
         re.I,
