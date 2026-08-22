@@ -48,6 +48,12 @@ def database():
     return render_template("database.html", tables=tables, data=data, error=error)
 
 
+@app.route("/api/version")
+def api_version():
+    return {"commit": os.environ.get("RENDER_GIT_COMMIT", "local")[:7],
+            "postgres": db.USE_POSTGRES}
+
+
 @app.route("/api/tables")
 def api_tables():
     return {"tables": db.list_tables()}
