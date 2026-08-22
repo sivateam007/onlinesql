@@ -108,7 +108,15 @@ def run_sql(sql_text):
                 results.append(entry)
                 break
             translated = oracle_compat(stmt)
+            m_orv = re.match(
+                r"\s*CREATE\s+OR\s+REPLACE\s+VIEW\s+([A-Za-z_]\w*)\s+AS\s+(.+)",
+                stmt,
+                re.I | re.S,
+            )
             try:
+                if m_orv and not USE_POSTGRES:
+                    conn.execute(f"DROP VIEW IF EXISTS {m_orv.group(1)}")
+                    translated = f"CREATE VIEW {m_orv.group(1)} AS {m_orv.group(2)}"
                 if not USE_POSTGRES and stmt.upper() == "COMMIT":
                     conn.commit()
                     entry.update(type="status", text="Commit complete.")
@@ -213,6 +221,38 @@ _PG_ONLY_RULES = [
     (
         r"\b([A-Za-z_]\w*)\s*\.\s*CURRVAL\b",
         lambda m: f"currval('{m.group(1)}')",
+        re.I,
+    ),
+    (r"\bSYSTIMESTAMP\b", "CURRENT_TIMESTAMP", re.I),
+    (
+        r"\bTRUNC\s*\(\s*(?:SYSDATE|CURRENT_TIMESTAMP)\s*\)",
+        "date_trunc('day', CURRENT_TIMESTAMP)",
+        re.I,
+    ),
+    (
+        r"\bBITAND\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
+        lambda m: f"(({m.group(1)}) & ({m.group(2)}))",
+        re.I,
+    ),
+    (
+        r"\bMEDIAN\s*\(\s*([^()]+?)\s*\)",
+        lambda m: f"percentile_cont(0.5) WITHIN GROUP (ORDER BY {m.group(1)})",
+        re.I,
+    ),
+    (
+        r"\bREGEXP_LIKE\s*\(\s*([^,]+?),\s*([^)]+?)\s*\)",
+        lambda m: f"({m.group(1)} ~ {m.group(2)})",
+        re.I,
+    ),
+    (
+        r"\bNEXT_DAY\s*\(\s*([^,()]+?)\s*,\s*([^,()]+?)\s*\)",
+        lambda m: (
+            f"(({m.group(1)}) + INTERVAL '1 day' * "
+            f"((((CASE upper({m.group(2)}) WHEN 'SUNDAY' THEN 0 WHEN 'MONDAY' THEN 1 "
+            f"WHEN 'TUESDAY' THEN 2 WHEN 'WEDNESDAY' THEN 3 WHEN 'THURSDAY' THEN 4 "
+            f"WHEN 'FRIDAY' THEN 5 WHEN 'SATURDAY' THEN 6 END)::int "
+            f"- EXTRACT(DOW FROM ({m.group(1)}))::int + 6) % 7) + 1))"
+        ),
         re.I,
     ),
 ]
