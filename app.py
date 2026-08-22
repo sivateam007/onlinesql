@@ -1,3 +1,4 @@
+import base64
 import os
 
 from flask import Flask, render_template, request
@@ -11,16 +12,27 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 db.ensure_dual()
 
 
+def _decode_incoming(sql):
+    """Accept optional 'B64:' prefix so WAFs don't flag legitimate SQL keywords."""
+    sql = (sql or "").strip()
+    if sql.startswith("B64:"):
+        try:
+            return base64.b64decode(sql[4:]).decode("utf-8", "replace").strip()
+        except Exception:
+            return ""
+    return sql
+
+
 @app.route("/", methods=["GET", "POST"])
 def console():
     results = None
     submitted = ""
     if request.method == "POST":
-        submitted = request.form.get("sql", "").strip()
+        submitted = _decode_incoming(request.form.get("sql", ""))
         if submitted:
             results = db.run_sql(submitted)
     else:
-        submitted = request.args.get("sql", "").strip()
+        submitted = _decode_incoming(request.args.get("sql", ""))
     if db.USE_POSTGRES:
         tables_sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
     else:

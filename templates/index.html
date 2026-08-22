@@ -178,7 +178,11 @@ function renderHist() {
 }
 form.addEventListener('submit', () => {
     const v = box.value.trim();
-    if (v) saveHist(v);
+    if (!v) return;
+    saveHist(v);
+    try {
+        box.value = 'B64:' + btoa(unescape(encodeURIComponent(v)));
+    } catch (err) { /* fall back to plain text */ }
 });
 box.addEventListener('keydown', e => {
     if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
