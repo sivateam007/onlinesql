@@ -54,6 +54,12 @@ def api_version():
             "postgres": db.USE_POSTGRES}
 
 
+@app.route("/api/dbg")
+def api_dbg():
+    q = request.args.get("q", "")
+    return {"raw": q, "translated": db.oracle_compat(q), "tables": db.list_tables()}
+
+
 @app.route("/api/tables")
 def api_tables():
     return {"tables": db.list_tables()}

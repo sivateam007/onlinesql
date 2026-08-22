@@ -161,8 +161,8 @@ _ORACLE_RULES = [
     (r"\bMINUS\b", "EXCEPT", re.I),
     (r"\bDATE\b", "TIMESTAMP", 0),
     (
-        r"\bMODIFY\s+([A-Za-z_]\w*)\s+(NUMERIC(?:\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?|VARCHAR\s*\(\s*\d+\s*\)|TIMESTAMP)\s*$",
-        r"ALTER COLUMN \1 TYPE \2",
+        r"\bLISTAGG\s*\(([^()]*?)\)\s*WITHIN\s+GROUP\s*\(\s*ORDER\s+BY\s+([^()]*?)\s*\)",
+        lambda m: f"STRING_AGG({m.group(1)} ORDER BY {m.group(2)})",
         re.I,
     ),
     (
