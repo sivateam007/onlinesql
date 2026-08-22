@@ -62,6 +62,8 @@ def _error_hint(err_text):
     if "no such column" in t or ("column" in t and "does not exist" in t):
         return "Column name problem — run DESC tablename to see the exact column names."
     if "syntax error" in t or "incomplete input" in t:
+        if "modify" in t:
+            return "Changing a column type (ALTER ... MODIFY) works on the cloud database — the local demo engine doesn't support it."
         return "Check spelling, commas, quotes and closing brackets. End each statement with ;"
     if "unique constraint" in t or "primary key" in t:
         return "That value already exists and must stay unique (PRIMARY KEY / UNIQUE rule)."
@@ -163,12 +165,17 @@ _ORACLE_RULES = [
         r"STRING_AGG(\1 ORDER BY \2)",
         re.I,
     ),
-    (
-        r"\bMODIFY\s+([A-Za-z_]\w*)\s+(NUMERIC(?:\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?|VARCHAR\s*\(\s*\d+\s*\)|TIMESTAMP)\b",
-        r"ALTER COLUMN \1 TYPE \2",
-        re.I,
-    ),
 ]
+
+_MODIFY_RULE = (
+    r"\bMODIFY\s+([A-Za-z_]\w*)\s+(NUMERIC(?:\s*\(\s*\d+(?:\s*,\s*\d+)?\s*\))?|VARCHAR\s*\(\s*\d+\s*\)|TIMESTAMP)\s*$",
+    r"ALTER COLUMN \1 TYPE \2",
+    re.I,
+)
+
+
+def _rules_for(pg):
+    return _ORACLE_RULES + [_MODIFY_RULE] if pg else list(_ORACLE_RULES)
 
 
 def _find_close(s, open_idx):
@@ -243,7 +250,10 @@ def _rownum_to_limit(stmt):
     return stmt
 
 
-def oracle_compat(sql):
+def oracle_compat(sql, pg=None):
+    if pg is None:
+        pg = USE_POSTGRES
+    rules = _rules_for(pg)
     strs = []
 
     def stash(m):
@@ -252,7 +262,7 @@ def oracle_compat(sql):
 
     masked = re.sub(r"'(?:[^']|'')*'", stash, sql)
     masked = _decode_to_case(masked)
-    for pat, rep, fl in _ORACLE_RULES:
+    for pat, rep, fl in rules:
         masked = re.sub(pat, rep, masked, flags=fl)
     masked = _rownum_to_limit(masked)
     return re.sub(r"\x01(\d+)\x01", lambda m: strs[int(m.group(1))], masked)
