@@ -3,6 +3,7 @@ import os
 from flask import Flask, render_template, request
 
 import db
+import lessons
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -18,11 +19,19 @@ def console():
         submitted = request.form.get("sql", "").strip()
         if submitted:
             results = db.run_sql(submitted)
+    else:
+        submitted = request.args.get("sql", "").strip()
     if db.USE_POSTGRES:
         tables_sql = "SELECT tablename FROM pg_tables WHERE schemaname = 'public';"
     else:
         tables_sql = "SELECT name FROM sqlite_master WHERE type = 'table';"
     return render_template("index.html", results=results, submitted=submitted, tables_sql=tables_sql)
+
+
+@app.route("/workout")
+def workout():
+    return render_template("workout.html", lessons=lessons.LESSONS,
+                           levels=lessons.LEVELS, setup_sql=lessons.SETUP_SQL)
 
 
 @app.route("/database")

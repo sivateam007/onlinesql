@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIVA — Daily SQL Workout</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-container">
+            <div class="logo">
+                <div class="logo-icon"><i class="fas fa-database"></i></div>
+                <h1>SIVA <span>Daily Workout</span></h1>
+            </div>
+            <nav class="nav-links">
+                <a href="/"><i class="fas fa-home"></i> Home</a>
+                <a href="/workout" class="active"><i class="fas fa-dumbbell"></i> Daily Workout</a>
+                <a href="/database"><i class="fas fa-table-list"></i> Database Manager</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Daily SQL Workout 💪</h2>
+            <p>One topic per day — start at BASE level, finish MEDIUM in 14 days. Tick each day when you solve it!</p>
+        </div>
+    </section>
+
+    <div class="container">
+
+        <div class="content-section">
+            <h2><i class="fas fa-flag-checkered"></i> Step 0 — Load your practice gym</h2>
+            <p style="margin-bottom:14px;">Every exercise uses two small tables: <b>emp</b> (6 employees) and <b>dept</b> (3 departments).
+               Load them once before Day 1 (re-loading resets the data anytime).</p>
+            <a class="btn btn-primary" style="text-decoration:none;" href="/?sql={{ setup_sql | urlencode }}" target="_blank">
+                <i class="fas fa-dumbbell"></i> Load Practice Tables</a>
+        </div>
+
+        {% for lv in [1, 2] %}
+        <div class="content-section">
+            <h2><i class="fas {{ levels[lv].icon }}" style="color: {{ levels[lv].color }};"></i>
+                Level {{ lv }} — {{ levels[lv].name }}</h2>
+            <p>{{ levels[lv].desc }}</p>
+            <div class="workout-grid">
+                {% for l in lessons if l.level == lv %}
+                <div class="day-card" data-id="{{ l.id }}">
+                    <div class="day-head">
+                        <span class="day-num">DAY {{ l.day }}</span>
+                        <span class="level-badge" style="--lv-color: {{ levels[lv].color }}">{{ levels[lv].name }}</span>
+                        <label class="done-toggle"><input type="checkbox" class="done-box"> done ✔️</label>
+                    </div>
+                    <h3 class="day-title">{{ l.title }}</h3>
+                    <p class="learn"><b>Learn:</b> {{ l.learn }}</p>
+                    <div class="task"><i class="fas fa-bullseye"></i> <b>Your task:</b> {{ l.task }}</div>
+                    <details class="solution">
+                        <summary><i class="fas fa-eye"></i> See example &amp; solution</summary>
+                        <pre>{{ l.example }}
+
+-- SOLUTION
+{{ l.solution }}</pre>
+                        <a class="btn btn-secondary btn-sm" style="text-decoration:none;"
+                           href="/?sql={{ l.solution | urlencode }}" target="_blank">
+                           <i class="fas fa-play"></i> Run solution in console</a>
+                    </details>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="content-section">
+            <h2><i class="fas fa-trophy"></i> Progress</h2>
+            <div class="progress-wrap">
+                <div class="progress-bar"><div id="progressFill" class="progress-fill" style="width: 0%;"></div></div>
+                <span id="progressText" class="progress-text">0 / 14 days done</span>
+            </div>
+            <button id="resetProg" class="btn btn-secondary" style="margin-top:14px;"><i class="fas fa-rotate-left"></i> Reset progress</button>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-column">
+                <h3>SIVA SQL Console</h3>
+                <p>Practice real SQL online — create tables, insert data, run queries and manage your database from anywhere.</p>
+            </div>
+            <div class="footer-column">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="/"><i class="fas fa-home"></i> SQL Console</a></li>
+                    <li><a href="/workout"><i class="fas fa-dumbbell"></i> Daily Workout</a></li>
+                    <li><a href="/database"><i class="fas fa-table-list"></i> Database Manager</a></li>
+                </ul>
+            </div>
+            <div class="footer-column">
+                <h3>Workout Plan</h3>
+                <ul>
+                    <li><a href="#">Days 1–7 · BASE level</a></li>
+                    <li><a href="#">Days 8–14 · MEDIUM level</a></li>
+                    <li><a href="#">Hard level coming soon…</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>&copy; 2026 SIVA. All rights reserved.</p>
+        </div>
+    </footer>
+
+<script>
+const KEY = 'siva_workout';
+const boxes = [...document.querySelectorAll('.done-box')];
+
+function loadProgress() {
+    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    let n = 0;
+    boxes.forEach(b => {
+        const id = b.closest('.day-card').dataset.id;
+        b.checked = !!saved[id];
+        b.closest('.day-card').classList.toggle('done', b.checked);
+        if (b.checked) n++;
+    });
+    document.getElementById('progressFill').style.width = Math.round(n / boxes.length * 100) + '%';
+    document.getElementById('progressText').textContent = n + ' / ' + boxes.length + ' days done';
+}
+boxes.forEach(b => b.addEventListener('change', () => {
+    const saved = JSON.parse(localStorage.getItem(KEY) || '{}');
+    const id = b.closest('.day-card').dataset.id;
+    if (b.checked) { saved[id] = 1; toast('Day complete! 🎉'); }
+    else delete saved[id];
+    localStorage.setItem(KEY, JSON.stringify(saved));
+    loadProgress();
+}));
+document.getElementById('resetProg').onclick = () => {
+    if (!confirm('Reset all workout progress?')) return;
+    localStorage.removeItem(KEY);
+    loadProgress();
+};
+
+function toast(msg) {
+    const d = document.createElement('div');
+    d.className = 'toast tok';
+    d.innerHTML = '<i class="fas fa-circle-check"></i> ' + msg;
+    document.getElementById('toasts').appendChild(d);
+    setTimeout(() => { d.classList.add('bye'); setTimeout(() => d.remove(), 400); }, 2400);
+}
+
+loadProgress();
+</script>
+</body>
+</html>

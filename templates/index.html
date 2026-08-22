@@ -16,6 +16,7 @@
             </div>
             <nav class="nav-links">
                 <a href="/" class="active"><i class="fas fa-home"></i> Home</a>
+                <a href="/workout"><i class="fas fa-dumbbell"></i> Daily Workout</a>
                 <a href="/database"><i class="fas fa-table-list"></i> Database Manager</a>
             </nav>
         </div>
@@ -34,7 +35,7 @@
 
             <form method="post" action="/" id="sqlform">
                 <textarea id="sqlbox" class="sql-input" name="sql" rows="6" spellcheck="false"
-                    placeholder="SELECT * FROM students;">{{ submitted }}</textarea>
+                    placeholder="SELECT * FROM emp;">{{ submitted }}</textarea>
                 <div class="btnrow">
                     <button type="submit" class="btn btn-primary"><i class="fas fa-play-circle"></i> Run Query</button>
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('sqlbox').value='';document.getElementById('sqlbox').focus()"><i class="fas fa-eraser"></i> Clear</button>
@@ -42,33 +43,46 @@
                 </div>
             </form>
 
-            {% if results %}
-            <div class="output">
-                {% for r in results %}
-                    <div class="echo">SQL&gt; {{ r.sql }};</div>
-                    {% if r.type == 'rows' %}
-                        {% if r.rows %}
-                        <div class="tblwrap">
-                        <table class="data-table">
-                            <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
-                            {% for row in r.rows %}
-                            <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
-                            {% endfor %}
-                        </table>
-                        </div>
-                        <div class="ok">{{ r.rows|length }} row(s) selected.</div>
-                        {% else %}
-                        <div class="ok">no rows selected</div>
-                        {% endif %}
-                    {% elif r.type == 'status' %}
-                        <div class="ok">{{ r.text }}</div>
-                    {% else %}
-                        <div class="err">ERROR at line 1:
-{{ r.text }}</div>
-                    {% endif %}
-                {% endfor %}
+            <div class="chips-row" id="chipsRow">
+                <span class="chips-label"><i class="fas fa-table-cells"></i> Available tables:</span>
+                <span id="chips" class="chips"><span class="empty-note">loading…</span></span>
             </div>
-            {% endif %}
+
+            <div class="output-box">
+                <div class="output-head"><i class="fas fa-display"></i> OUTPUT</div>
+                <div class="output-body">
+                    {% if results %}
+                        {% for r in results %}
+                            <div class="echo">SQL&gt; {{ r.sql }};</div>
+                            {% if r.type == 'rows' %}
+                                {% if r.rows %}
+                                <div class="tblwrap">
+                                <table class="data-table">
+                                    <tr>{% for c in r.columns %}<th>{{ c }}</th>{% endfor %}</tr>
+                                    {% for row in r.rows %}
+                                    <tr>{% for v in row %}<td>{{ '' if v is none else v }}</td>{% endfor %}</tr>
+                                    {% endfor %}
+                                </table>
+                                </div>
+                                <div class="ok">{{ r.rows|length }} row(s) selected.</div>
+                                {% else %}
+                                <div class="ok">no rows selected</div>
+                                {% endif %}
+                            {% elif r.type == 'status' %}
+                                <div class="ok">{{ r.text }}</div>
+                            {% else %}
+                                <div class="err">ERROR at line 1:
+{{ r.text }}</div>
+                                {% if r.hint %}
+                                <div class="hintbox"><i class="fas fa-lightbulb"></i> {{ r.hint }}</div>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="empty-note">Run a query — results will appear here.</p>
+                    {% endif %}
+                </div>
+            </div>
 
             <div class="features" style="margin-top: 32px;">
                 <div class="feature">
@@ -84,8 +98,8 @@
                     <p>Run Queries</p>
                 </div>
                 <div class="feature">
-                    <div class="icon"><i class="fas fa-shield-halved"></i></div>
-                    <p>Safe Deletes</p>
+                    <a href="/workout" style="text-decoration:none;"><div class="icon"><i class="fas fa-dumbbell"></i></div>
+                    <p>Daily Workout</p></a>
                 </div>
             </div>
         </div>
@@ -118,6 +132,7 @@
                 <h3>Quick Links</h3>
                 <ul>
                     <li><a href="/"><i class="fas fa-home"></i> SQL Console</a></li>
+                    <li><a href="/workout"><i class="fas fa-dumbbell"></i> Daily Workout</a></li>
                     <li><a href="/database"><i class="fas fa-table-list"></i> Database Manager</a></li>
                     <li><a href="#" onclick="fill('{{ tables_sql }}');return false;"><i class="fas fa-list"></i> Show Tables Query</a></li>
                 </ul>
@@ -127,8 +142,8 @@
                 <ul>
                     <li><a href="#">CREATE TABLE</a></li>
                     <li><a href="#">INSERT / SELECT / UPDATE / DELETE</a></li>
-                    <li><a href="#">COMMIT / ROLLBACK</a></li>
-                    <li><a href="#">DROP TABLE</a></li>
+                    <li><a href="#">COMMIT / ROLLBACK / ROWNUM / DESC</a></li>
+                    <li><a href="#">DECODE / MINUS / LISTAGG / dual</a></li>
                 </ul>
             </div>
         </div>
@@ -143,6 +158,11 @@
 const box = document.getElementById('sqlbox');
 const form = document.getElementById('sqlform');
 function fill(v) { box.value = v; box.focus(); }
+function appendQuery(q) {
+    const cur = box.value.trim();
+    box.value = cur ? cur + '\n' + q : q;
+    box.focus();
+}
 
 function saveHist(v) {
     const arr = JSON.parse(localStorage.getItem('sqlhist') || '[]').filter(x => x !== v);
@@ -164,12 +184,34 @@ box.addEventListener('keydown', e => {
     if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); form.requestSubmit(); }
 });
 
+async function loadChips() {
+    const chips = document.getElementById('chips');
+    try {
+        const res = await fetch('/api/table_counts');
+        const data = await res.json();
+        chips.innerHTML = '';
+        if (!data.tables.length) {
+            chips.innerHTML = '<span class="empty-note">none yet — CREATE one below!</span>';
+            return;
+        }
+        data.tables.forEach(t => {
+            const b = document.createElement('button');
+            b.className = 'chip';
+            b.title = 'Click to insert SELECT * FROM ' + t.name;
+            b.innerHTML = '<i class="fas fa-table-cells"></i>' + t.name + '<span class="chip-n">' + t.rows + '</span>';
+            b.onclick = () => appendQuery('SELECT * FROM ' + t.name + ';');
+            chips.appendChild(b);
+        });
+    } catch (e) { chips.innerHTML = '<span class="empty-note">unavailable</span>'; }
+}
+
 async function loadTables() {
     const list = document.getElementById('tableList');
     try {
         const res = await fetch('/api/table_counts');
         const data = await res.json();
         list.innerHTML = '';
+        loadChips();
         if (!data.tables.length) { list.innerHTML = '<p class="empty-note">No tables yet — CREATE one in the console above!</p>'; return; }
         data.tables.forEach(t => {
             const card = document.createElement('div');

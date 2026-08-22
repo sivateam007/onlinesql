@@ -49,6 +49,27 @@ def split_statements(text):
     return [s.strip() for s in stmts if s.strip()]
 
 
+def _error_hint(err_text):
+    t = err_text.lower()
+    if ("no such table" in t) or ("does not exist" in t and "column" not in t):
+        try:
+            avail = ", ".join(list_tables())
+        except Exception:
+            avail = ""
+        if avail:
+            return f"That table doesn't exist yet. Available tables: {avail}. Check spelling, or CREATE it first."
+        return "There are no tables yet — create one first, e.g. CREATE TABLE students (id NUMBER(3), name VARCHAR2(20));"
+    if "no such column" in t or ("column" in t and "does not exist" in t):
+        return "Column name problem — run DESC tablename to see the exact column names."
+    if "syntax error" in t or "incomplete input" in t:
+        return "Check spelling, commas, quotes and closing brackets. End each statement with ;"
+    if "unique constraint" in t or "primary key" in t:
+        return "That value already exists and must stay unique (PRIMARY KEY / UNIQUE rule)."
+    if "already exists" in t:
+        return "An object with this name already exists. Use a new name or DROP the old one first."
+    return None
+
+
 def run_sql(sql_text):
     results = []
     conn = get_conn()
@@ -103,6 +124,9 @@ def run_sql(sql_text):
                     entry.update(type="status", text="Command executed successfully.")
             except Exception as exc:
                 entry.update(type="error", text=f"{exc.__class__.__name__}: {exc}")
+                h = _error_hint(entry["text"])
+                if h:
+                    entry["hint"] = h
                 error_happened = True
             results.append(entry)
             if error_happened:
